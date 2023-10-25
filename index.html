@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>System Benchmark Tool</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        /* Header and Footer styles */
+        header, footer {
+            background-color: black;
+            color: white;
+            padding: 10px;
+            text-align: center;
+        }
+
+        /* Sticky Footer CSS */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            flex: 0 0 auto;
+        }
+
+        #result {
+            flex: 1 0 auto;
+            text-align: center; /* Center align content within #result */
+        }
+
+        footer {
+            flex: 0 0 auto;
+        }
+
+        #memory-usage-chart {
+            height: 300px;
+        }
+
+        #average-time {
+            font-size: 34px; /* Increase the font size */
+            text-align: center;
+            margin-top: 20px; /* Add some top margin for spacing */
+        }
+
+        #cpu-info {
+            font-size: 18px; /* Font size for CPU info */
+            text-align: left;
+            margin: 20px;
+        }
+
+        #memory-info {
+            font-size: 18px; /* Font size for memory info */
+            text-align: left;
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>System Benchmark Tool</h1>
+    </header>
+
+    <div id="result">
+        <div id="average-time (Updated every 5 sec)">
+            <!-- Average Time will be displayed here -->
+        </div>
+        <div id="benchmark-result">
+            <!-- Benchmark results will be displayed here -->
+        </div>
+        <div id="cpu-info">
+            <!-- CPU information will be displayed here -->
+        </div>
+        <div id="memory-info">
+            <!-- Memory information will be displayed here -->
+        </div>
+        <div id="memory-usage-chart"></div>
+    </div>
+
+    <footer>
+        <p>Made by Eshaan Sharma , Raghavendra Tiwari , Sai Srinivas</p>
+    </footer>
+    <script>
+        $(document).ready(function () {
+            function displayMemoryUsage(memoryUsage) {
+                $("#memory-usage-chart").html("Memory Usage: " + memoryUsage + "%");
+            }
+
+            function displayCpuInfo(cpuInfo) {
+                var html = "<h2>CPU Information</h2>";
+                for (var key in cpuInfo) {
+                    html += key + ": " + cpuInfo[key] + "<br>";
+                }
+                $("#cpu-info").html(html);
+            }
+
+            function displaySystemInfo(data) {
+                if (data.cpu_info) {
+                    displayCpuInfo(data.cpu_info);
+                }
+                if (data.memory_info) {
+                    displayMemoryUsage(data.memory_info["Memory Usage (%)"]);
+                }
+            }
+
+            function updateBenchmarkResult() {
+                $.ajax({
+                    url: "/benchmark",
+                    type: "GET",
+                    dataType: "json",
+                    success: function (data) {
+                        console.log("Benchmark Result Data:", data);
+                        if (data.average_time !== undefined) {
+                            $("#benchmark-result").html("Average Time (updated every 5 sec): " + data.average_time.toFixed(4) + " seconds");
+                        } else {
+                            console.error("Invalid benchmark result data:", data);
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Failed to fetch benchmark result:", status, error);
+                    }
+                });
+            }
+
+            function updateSystemInfo() {
+                $.get("/system_info", function (data) {
+                    displaySystemInfo(data);
+                });
+            }
+
+            var timeArray = [];
+            var memoryArray = [];
+            var memoryUsageChart = document.getElementById("memory-usage-chart");
+
+            function updateMemoryUsageChart() {
+                Plotly.newPlot(memoryUsageChart, [{
+                    x: timeArray,
+                    y: memoryArray,
+                    type: 'scatter',
+                    mode: 'lines+points',
+                    name: 'Memory Usage (%)',
+                    line: { color: 'blue' },
+                }], {
+                    xaxis: { title: 'Time' },
+                    yaxis: { title: 'Usage (%)' },
+                });
+            }
+
+            function monitorMemoryUsage() {
+    $.get("/system_info", function (data) {
+        if (data.memory_usage !== undefined) {
+            var memoryUsage = data.memory_usage["Memory Usage (%)"];
+            var time = new Date().toLocaleTimeString();
+            
+            timeArray.push(time);
+            memoryArray.push(memoryUsage);
+
+            if (timeArray.length > 20) {
+                timeArray.shift();
+                memoryArray.shift();
+            }
+
+            displayMemoryUsage(memoryUsage);  // Update the text display
+            updateMemoryUsageChart();  // Update the chart
+        }
+    });
+}
+
+
+            // Update the benchmark result, system info, and memory usage every 5 seconds (adjust as needed)
+            setInterval(updateBenchmarkResult, 5000);
+            setInterval(updateSystemInfo, 5000);
+            setInterval(monitorMemoryUsage, 1000);
+
+            // Initial updates
+            updateBenchmarkResult();
+            updateSystemInfo();
+            monitorMemoryUsage();
+        });
+    </script>
+</body>
+</html>
